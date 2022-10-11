@@ -1,5 +1,5 @@
 # АНАЛИЗ ДАННЫХ И ИСКУССТВЕННЫЙ ИНТЕЛЛЕКТ [in GameDev]
-Отчет по лабораторной работе #1 выполнил:
+Отчет по лабораторной работе #2 выполнил:
 - Плешивцев Денис Владимирович
 - РИ-210948
 
@@ -36,235 +36,243 @@
 - ✨Magic ✨
 
 ## Цель работы
-Ознакомиться с основными операторами языка Python на примере реализации линейной регрессии.
+Познакомиться с программными средствами для организции передачи данных между инструментами Google, Python и Unity.
 
 ## Задание 1
-### Написать программы Hello World на Python и Unity.
-- Python
+### Реализовать совместную работу и передачу данных в связке Python - Google-Sheets – Unity. При выполнении задания используйте видео-материалы и исходные данные, предоставленные преподавателя курса.
+- В облачном сервисе Google Console подключил API необходимое для работы с Google Sheets и Google Drive.
 
-![image](screenshots/Colab.png)
-- Unity
+![image](screenshots/0.png)
+- Создал новую Google таблицу и выдал необходимые права сервисным аккаунтам
 
-![image](screenshots/Unity.png)
+![image](screenshots/1.png)
+- Реализовал запись данных из скрипта на Python в Google таблицу. Данные описывают изменение темпа инфляции на протяжении 11 отсчётных периодов, с учётом стоимости игрового объекта в каждый период.
 
+![image](screenshots/2.png)
+![image](screenshots/3.png)
+- Создал новый проект на Unity, который будет получать данные из Google таблицы, в которую были записаны данные в предыдущем пункте.
+
+![image](screenshots/4.png)
+- Написал функционал на Unity, в котором будет воспризводиться аудиофайл в зависимости от значения данных из таблицы.
+```csharp
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Networking;
+using SimpleJSON;
+
+public class NewBehaviourScript : MonoBehaviour
+{
+    public AudioClip goodSpeak;
+    public AudioClip normalSpeak;
+    public AudioClip badSpeak;
+    private AudioSource selectAudio;
+    private Dictionary<string,float> dataSet = new Dictionary<string, float>();
+    private bool statusStart = false;
+    private int i = 1;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        StartCoroutine(GoogleSheets());
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (dataSet["Mon_" + i.ToString()] <= 10 & statusStart == false & i != dataSet.Count)
+        {
+            StartCoroutine(PlaySelectAudioGood());
+            Debug.Log(dataSet["Mon_" + i.ToString()]);
+        }
+
+        if (dataSet["Mon_" + i.ToString()] > 10 & dataSet["Mon_" + i.ToString()] < 100 & statusStart == false & i != dataSet.Count)
+        {
+            StartCoroutine(PlaySelectAudioNormal());
+            Debug.Log(dataSet["Mon_" + i.ToString()]);
+        }
+
+        if (dataSet["Mon_" + i.ToString()] >= 100 & statusStart == false & i != dataSet.Count)
+        {
+            StartCoroutine(PlaySelectAudioBad());
+            Debug.Log(dataSet["Mon_" + i.ToString()]);
+        }
+    }
+
+    IEnumerator GoogleSheets()
+    {
+        UnityWebRequest curentResp = UnityWebRequest.Get("https://sheets.googleapis.com/v4/spreadsheets/1HMFunpKS5Ar_4kjxcbZmLYAa1iOHUKHcsZlD3rl0zSg/values/Лист1?key=AIzaSyBSCFcGYgsCZwGqht7b_jH1WYdEtNROeBE");
+        yield return curentResp.SendWebRequest();
+        string rawResp = curentResp.downloadHandler.text;
+        var rawJson = JSON.Parse(rawResp);
+        foreach (var itemRawJson in rawJson["values"])
+        {
+            var parseJson = JSON.Parse(itemRawJson.ToString());
+            var selectRow = parseJson[0].AsStringList;
+            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[2]));
+        }
+    }
+
+    IEnumerator PlaySelectAudioGood()
+    {
+        statusStart = true;
+        selectAudio = GetComponent<AudioSource>();
+        selectAudio.clip = goodSpeak;
+        selectAudio.Play();
+        yield return new WaitForSeconds(3);
+        statusStart = false;
+        i++;
+    }
+    IEnumerator PlaySelectAudioNormal()
+    {
+        statusStart = true;
+        selectAudio = GetComponent<AudioSource>();
+        selectAudio.clip = normalSpeak;
+        selectAudio.Play();
+        yield return new WaitForSeconds(3);
+        statusStart = false;
+        i++;
+    }
+    IEnumerator PlaySelectAudioBad()
+    {
+        statusStart = true;
+        selectAudio = GetComponent<AudioSource>();
+        selectAudio.clip = badSpeak;
+        selectAudio.Play();
+        yield return new WaitForSeconds(4);
+        statusStart = false;
+        i++;
+    }
+}
+
+```
+
+- При запуске Unity последовательно воспроизводит аудиофайлы в зависимости от значения.
+
+![image](screenshots/5.png)
 ## Задание 2
-### В разделе «ход работы» пошагово выполнить каждый пункт с описанием и примером реализации задачи по теме лабораторной работы.
+### Реализовать запись в Google-таблицу набора данных, полученных с помощью линейной регрессии из лабораторной работы № 1.
 
-- Производим подготовку данных для работы с алгоритмом линейной
-регрессии. 10 видов данных были установлены случайным образом, и данные находились в линейной зависимости. Данные преобразуются в
-формат массива, чтобы их можно было вычислить напрямую при использовании умножения и сложения.
+- Немного изменил код из первой лабораторной и подключил Google таблицу.
 
 ```py
 
-#Import the required modules, numpy for calculation, and Matplotlib for drawing
+import gspread
 import numpy as np
 import matplotlib.pyplot as plt
 
-# define data, and change list to array
-x = [3,21,22,34,54,34,55,67,89,99]
+x = [3, 21, 22, 34, 54, 34, 55, 67, 89, 99]
 x = np.array(x)
-y = [2,22,24,65,79,82,55,130,150,199]
+y = [2, 22, 24, 65, 79, 82, 55, 130, 150, 199]
 y = np.array(y)
 
-#Show the effect of a scatter plot
-plt.scatter(x,y)
+plt.scatter(x, y)
 
-```
-![image](screenshots/0.png)
 
-- Определим связанные функции. Функция модели: определяет модель
-линейной регрессии wx+b. Функция потерь: функция потерь
-среднеквадратичной ошибки. Функция оптимизации: метод
-градиентного спуска для нахождения частных производных w и b.
-
-```py
-
-#The basic linear regression model is wx+ b, and since this is a two-dimensional space, the model is ax+b
 def model(a, b, x):
-  return a*x + b
+    return a * x + b
 
-#The most commonly used loss function of linear regression model is the loss function of mean variance difference
+
 def loss_function(a, b, x, y):
-  num = len(x)
-  prediction = model(a, b, x)
-  return (0.5/num) * (np.square(prediction-y)).sum()
+    num = len(x)
+    prediction = model(a, b, x)
+    return (0.5 / num) * (np.square(prediction - y)).sum()
 
-#The optimization function mainly USES partial derivatives to update two parameters a and b
+
 def optimize(a, b, x, y):
-  num = len(x)
-  prediction = model(a, b, x)
-  # Update the values of A and B finding the partial derivatives of the loss function on a and b
-  da = (1.0/num) * ((prediction - y)*x).sum()
-  db = (1.0/num) * ((prediction - y).sum())
-  a = a - Lr*da
-  b = b - Lr*db
-  return a, b
+    num = len(x)
+    prediction = model(a, b, x)
+    da = (1.0 / num) * ((prediction - y) * x).sum()
+    db = (1.0 / num) * ((prediction - y).sum())
+    a = a - Lr * da
+    b = b - Lr * db
+    return a, b
 
-#Iterated function, return a and b
+
 def iterate(a, b, x, y, times):
-  for i in range(times):
-    a, b = optimize(a, b, x, y)
-  return a, b
+    for i in range(times):
+        a, b = optimize(a, b, x, y)
+    return a, b
 
-```
 
-- Инициализация и первая итерация
-
-```py
-
-#Initialize parameters and display
 a = np.random.rand(1)
-print(a)
 b = np.random.rand(1)
-print(b)
 Lr = 0.000001
 
-#For the first iteration, the parameter values, loses, and visualization after the iteration are displayed
-a, b = iterate(a, b, x, y, 1)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
+gc = gspread.service_account(filename='unityds-365018-1d3bc0e71564.json')
+sh = gc.open("UnityDS")
+for i in range(1, 12):
+    a, b = iterate(a, b, x, y, i * 10)
+    prediction = model(a, b, x)
+    loss = loss_function(a, b, x, y)
+    loss = str(loss).replace('.', ',')
+    sh.sheet1.update(('A' + str(i)), str(i))
+    sh.sheet1.update(('B' + str(i)), str(a))
+    sh.sheet1.update(('C' + str(i)), str(b))
+    sh.sheet1.update(('D' + str(i)), str(loss))
+    print(loss)
 
 ```
-![image](screenshots/1.png)
 
-- Вторая итерация
+- Запускаем код и видим, что все работает. С каждой итерацией for мы увеличиваем количество итераций в iterate на 10, что позволяет нам понаблюдать за изменением параметра loss (4 столбец в Google таблице).
 
-```py
-
-a, b = iterate(a, b, x, y, 2)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
-
-```
-![image](screenshots/2.png)
-
-- Третья итерация
-
-```py
-
-a, b = iterate(a, b, x, y, 3)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
-
-```
-![image](screenshots/3.png)
-
-- Четвертая итерация
-
-```py
-
-a, b = iterate(a, b, x, y, 4)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
-
-```
-![image](screenshots/4.png)
-
-- Пятая итерация
-
-```py
-
-a, b = iterate(a, b, x, y, 5)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
-
-```
-![image](screenshots/5.png)
-
-- 10000-я итерация
-
-```py
-
-a, b = iterate(a, b, x, y, 10000)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
-
-```
-![image](screenshots/10000.png)
-
+![image](screenshots/6.png)
+![image](screenshots/7.png)
 
 ## Задание 3
-### Должна ли величина loss стремиться к нулю при изменении исходных данных? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ.
-- Величина loss с каждой итерацией стремится к нулю, так как модель постепенно "обучается". Наглядный пример — это разница в значении loss на первой и на 10000-ой итерации.
+### Самостоятельно разработать сценарий воспроизведения звукового сопровождения в Unity в зависимости от изменения считанных данных в задании 2.
+- Немного меняем код из первого задания. Аудиофайлы будут воспроизводиться в зависимости от значения loss (x<=400 - Хорошо / 400<x<800 - Средне / 800<=x - Плохо).
 
-Первая:
-```py
+```csharp
 
-a, b = iterate(a, b, x, y, 1)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
+void Update()
+    {
+        if (dataSet["Mon_" + i.ToString()] <= 400 & statusStart == false & i != dataSet.Count)
+        {
+            StartCoroutine(PlaySelectAudioGood());
+            Debug.Log(dataSet["Mon_" + i.ToString()]);
+        }
 
-```
+        if (dataSet["Mon_" + i.ToString()] > 400 & dataSet["Mon_" + i.ToString()] < 800 & statusStart == false & i != dataSet.Count)
+        {
+            StartCoroutine(PlaySelectAudioNormal());
+            Debug.Log(dataSet["Mon_" + i.ToString()]);
+        }
 
-![image](screenshots/31.png)
+        if (dataSet["Mon_" + i.ToString()] >= 800 & statusStart == false & i != dataSet.Count)
+        {
+            StartCoroutine(PlaySelectAudioBad());
+            Debug.Log(dataSet["Mon_" + i.ToString()]);
+        }
+    }
 
-10000-я:
-```py
-
-a, b = iterate(a, b, x, y, 10000)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
-
-```
-
-![image](screenshots/10000.png)
-
-### Какова роль параметра Lr? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ. В качестве эксперимента можете изменить значение параметра.
-
-- За "обучение" модели как раз и отвечает параметр Lr (Learning rate). Мы можем увеличить значение этого параметра и увидеть, что он заставил модель "обучаться" быстрее, о чем свидетельствует уменьшенная величина loss.
-
-
-```py
-
-a = np.random.rand(1)
-print(a)
-b = np.random.rand(1)
-print(b)
-Lr = 0.000001
-
-a, b = iterate(a, b, x, y, 1)
-prediction = model(a, b, x)
-loss = loss_function(a, b, x, y)
-print(a, b, loss)
-plt.scatter(x, y)
-plt.plot(x, prediction)
+    IEnumerator GoogleSheets()
+    {
+        UnityWebRequest curentResp = UnityWebRequest.Get("https://sheets.googleapis.com/v4/spreadsheets/1HMFunpKS5Ar_4kjxcbZmLYAa1iOHUKHcsZlD3rl0zSg/values/Лист1?key=AIzaSyBSCFcGYgsCZwGqht7b_jH1WYdEtNROeBE");
+        yield return curentResp.SendWebRequest();
+        string rawResp = curentResp.downloadHandler.text;
+        var rawJson = JSON.Parse(rawResp);
+        foreach (var itemRawJson in rawJson["values"])
+        {
+            var parseJson = JSON.Parse(itemRawJson.ToString());
+            var selectRow = parseJson[0].AsStringList;
+            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[3]));
+        }
+    }
 
 ```
 
-![image](screenshots/31.png)
+- При запуске Unity последоватьльно воспроизводит аудиофайлы в зависимости от значения, как это и требовалось.
 
-И при Lr = 0.0001: 
+![image](screenshots/8.png)
+![image](screenshots/9.png)
 
-![image](screenshots/0.0001.png)
 
 
 ## Выводы
 
-Я познакомился с новыми фреймворками для программирования на Python, сделал первые шаги в Unity и узнал основные операторы языка Python на примере реализации линейной регрессии.
+Я научился реализовывать совместную работу и передачу данных в связке Python - Google Sheets – Unity и познакомился с программными средствами, используемыми для их организации.
 
 | Plugin | README |
 | ------ | ------ |
