@@ -41,7 +41,7 @@
 ## Задание 1
 ### В проекте Unity реализовать перцептрон, который умеет производить вычисления: OR, AND, NAND, XOR. Дать комментарии о корректности работы.
 
-- Создадал новый проект в Unity и подключил ```Perceptron.cs``` к пустому Game Object:
+- Создал новый проект в Unity и к пустому Game Object подключил ```Perceptron.cs```:
  
 ```csharp
 
@@ -112,7 +112,7 @@ public class Perceptron : MonoBehaviour {
 	double CalcOutput(double i1, double i2)
 	{
 		double[] inp = new double[] {i1, i2};
-    double dp = DotProductBias(weights,inp);
+		double dp = DotProductBias(weights,inp);
 		if(dp > 0) return(1);
 		return (0);
 	}
@@ -134,7 +134,7 @@ public class Perceptron : MonoBehaviour {
 	}
 
 	void Start () {
-		Train(100);
+		Train(10);
 		Debug.Log("Test 0 0: " + CalcOutput(0,0));
 		Debug.Log("Test 0 1: " + CalcOutput(0,1));
 		Debug.Log("Test 1 0: " + CalcOutput(1,0));
@@ -146,175 +146,103 @@ public class Perceptron : MonoBehaviour {
 	}
 }
 
-
 ```
 
-- Также добавил и настроил компоненты _Rigidbody_, _Decision Requester_, _Behavior Parameters_.
+### OR 
+
+- Настроил _Input_ и _Output_ в соответствии с операцией __"ИЛИ"__ и запустил процесс обучения. Для достижения значения ___Total Error = 0___ понадобилось 4 эпохи обучения. Перцептрон научился безошибочно производить эту операцию:
+  
+![image](assets/1.png)
+
+- В среднем перцептрону требовалось около 4 эпох обучения. Только один раз перцептрону потребовалось всего 2 эпохи, чтобы полностью обучиться: 
+
+![image](assets/2.png)
+
+### AND 
+
+- Настроил _Input_ и _Output_ для операции __"И"__ и запустил обучение. В среднем для корректной работы перцептрону требовалось не менее 5-6 эпох обучения:
+  
+![image](assets/3.png)
+
+### NAND 
+
+- Повторил действия для операции __"И-НЕ"__. В среднем для полного обучения требовалось 5 эпох:
+  
+![image](assets/4.png)
+
+### XOR 
+
+- Аналогично настроил все для __"XOR"__ и запустил обучение. Видим, что 10 эпох для обучения перцептрона в этот раз не хватило. Значение  ___Total Error = 4___:
   
 ![image](assets/5.png)
 
-- В корень проекта добавил файл конфигурации нейронной сети _"rollerball_config.yaml"_:
-  
+- Попробовал увеличить количество эпох ```Train(100000)```. Значение  ___Total Error___ по прежнему 4:
+
 ![image](assets/6.png)
 
-- И наконец, запустил Ml Agent и проверил его работу: 
-  
-![image](assets/movie_1.gif)
+- Это связано с особенностью __"XOR"__. Если представить работу перцептрона на графике, получится примерно как на картинке ниже. Для предыдущих операций нам хватало одной _разделяющей прямой_. В случае _"исключающего или"_ необходимы две прямые, а соответственно два нейрона. Поэтому без дополнительного нейрона, сколько бы не было эпох обучения, перцептрон ___не будет работать корректно___.
 
-- Для ускорения обучения создал много копий модели _«Плоскость-Сфера-Куб»_.
-  
-![image](assets/movie_2.gif)
+![image](assets/g1.png)
 
-- После обучения модели, получил такой результат:
-  
-![image](assets/movie_3.gif)
 
 ## Задание 2
-### Подробно опишите каждую строку файла конфигурации нейронной сети, доступного в папке с файлами проекта по ссылке. Самостоятельно найдите информацию о компонентах Decision Requester, Behavior Parameters, добавленных на сфере.
+### Построить графики зависимости количества эпох от ошибки обучения. Указать от чего зависит необходимое количество эпох обучения.
 
-- ***Decision Requester*** - это компонент, который автоматически запрашивает решения для агента через регулярные промежутки времени. Без DecisionRequester реализация  агента должна вручную вызывать функцию RequestDecision().
+- Для построения графиков я взял среднее значение ___Total Error___ для каждой эпохи из 3 успешных попыток обучения перцептрона:
 
-- ***Behavior Parameters*** - это компонент для настройки поведения и свойств агента. Во время выполнения он определяет поведение объекта в соответствии с настройками, указанными в редакторе.
+- ### OR 
 
-- ***rollerball_config.yaml***:
+![image](assets/7.png)
 
-```yaml
+- ### AND 
 
-behaviors:
-  RollerBall: # id агента
-    trainer_type: ppo # Тип тренировки, который будет использоваться (Обычно используется обучение с подкреплением PPO - Proximal Policy Optimization).
-    hyperparameters: # Гиперпараметры.
-      batch_size: 10 # Количество опытов в каждой итерации градиентного спуска. Этот парметр всегда должнен быть в несколько раз меньше, чем buffer_size.
-      buffer_size: 100 # Количество опытов, которые необходимо сделать перед обновлением поведения модели.
-      learning_rate: 3.0e-4 # Начальная скорость обучения.
-      beta: 5.0e-4 # "Сила регуляризации энтропии", которая делает поведение объекта более "рандомным". Это гарантирует, что агенты должным образом исследуют пространство во время обучения.
-      epsilon: 0.2 # Влияет на скорость изменения поведения во время обучения.
-      lambd: 0.99 # Параметр регуляризации, используемый при расчете обобщенной оценки преимущества (GAE - Generalized Advantage Estimate).
-      num_epoch: 3 # Количество проходов через буфер опыта при выполнении оптимизации градиентного спуска.
-      learning_rate_schedule: linear # Определяет, как скорость обучения изменяется с течением времени. При linear скорость обучения уменьшается линейно, достигая 0 на max_steps.
-    network_settings: # Настройки сети.
-      normalize: false # Применяется ли нормализация к входным данным.
-      hidden_units: 128 # Количество нейронов в скрытых слоях.
-      num_layers: 2 # Количество скрытых слоев.
-    reward_signals: # Настройка вознаграждения.
-      extrinsic: # Внешние награды.
-        gamma: 0.99 # Коэффициент поощерения.
-        strength: 1.0 # Коэффициент, на который умножается вознаграждение.
-    max_steps: 500000 # Общее количество шагов (т. е. собранных наблюдений и предпринятых действий), которые необходимо выполнить в среде (или во всех средах при параллельном использовании нескольких) перед завершением процесса обучения.
-    time_horizon: 64 # Сколько опыта необходимо собрать для каждого агента, прежде чем добавить его в буфер опыта. Когда этот предел достигается до конца эпизода, оценка значения используется для прогнозирования общего ожидаемого вознаграждения из текущего состояния агента.
-    summary_freq: 10000 # Количество опытов, которое необходимо сделать перед отображением статистики обучения. 
-    
-```
+![image](assets/8.png)
+
+- ### NAND 
+
+![image](assets/9.png)
+
+- ### XOR 
+
+![image](assets/10.png)
+
+- С каждой эпохой нейросеть переходит из ___недообученного___ состояния в ___оптимальное___. При этом, если вовремя не остановиться, она ___переобучится___ и утратит _обобщающую способность_. Поэтому необходимое количество эпох зависит от конкретной задачи и её сложности. Например, операции __"OR"__ перцептрон обучался довольно быстро, а для __"AND"__ и __"NAND"__ уже требовалось больше эпох.
 
 ## Задание 3
-### Доработайте сцену и обучите ML-Agent таким образом, чтобы шар перемещался между двумя кубами разного цвета. Кубы должны, как и в первом задании, случайно изменять координаты на плоскости.
+### Построить визуальную модель работы перцептрона на сцене Unity.
 
-- Внес изменения в _"RollerAgent.cs"_ :
+- Добавил ___OnTriggerEnter___ в ```Perceptron.cs```:
 
 ```csharp
 
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using Unity.MLAgents;
-using Unity.MLAgents.Sensors;
-using Unity.MLAgents.Actuators;
-
-public class RollerAgent : Agent
-{
-    Rigidbody rBody;
-    // Start is called before the first frame update
-    void Start()
-    {
-        rBody = GetComponent<Rigidbody>();
-    }
-
-    public Transform Target1;
-    public Transform Target2;
-    private bool target1IsReached;
-    private bool target2IsReached;
-
-    public override void OnEpisodeBegin()
-    {
-        if (this.transform.localPosition.y < 0)
-        {
-            this.rBody.angularVelocity = Vector3.zero;
-            this.rBody.velocity = Vector3.zero;
-            this.transform.localPosition = new Vector3(0, 0.5f, 0);
-        }
-        target1IsReached = false; // Достигла ли сфера первого куба
-        target2IsReached = false; // Достигла ли сфера второго куба
-
-        Target1.localPosition = new Vector3(Random.value * 8-4, 0.5f, Random.value * 8-4); // Координаты первого куба
-        Target2.localPosition = new Vector3(Random.value * 8-4, 0.5f, Random.value * 8-4); // Координаты второго куба
-        Target1.gameObject.SetActive(true); // "Активируем" первую цель 
-        Target2.gameObject.SetActive(true); // "Активируем" вторую цель 
-    }
-    public override void CollectObservations(VectorSensor sensor)
-    {
-        sensor.AddObservation(Target1.localPosition);
-        sensor.AddObservation(Target2.localPosition);
-        sensor.AddObservation(this.transform.localPosition);
-        sensor.AddObservation(rBody.velocity.x);
-        sensor.AddObservation(rBody.velocity.z);
-        // Добавляем наблюдение за тем, достигла ли сфера целей
-        sensor.AddObservation(target1IsReached); 
-        sensor.AddObservation(target2IsReached);
-    }
-    public float forceMultiplier = 10;
-    public override void OnActionReceived(ActionBuffers actionBuffers)
-    {
-        Vector3 controlSignal = Vector3.zero;
-        controlSignal.x = actionBuffers.ContinuousActions[0];
-        controlSignal.z = actionBuffers.ContinuousActions[1];
-        rBody.AddForce(controlSignal * forceMultiplier);
-
-        float distanceToTarget1 = Vector3.Distance(this.transform.localPosition, Target1.localPosition); // Расстояние до первого куба
-        float distanceToTarget2 = Vector3.Distance(this.transform.localPosition, Target2.localPosition); // Расстояние до второго куба
-
-         // Проверка достижения первой цели
-        if(!target1IsReached && distanceToTarget1 < 1.42f)
-        {
-            target1IsReached = true;
-            Target1.gameObject.SetActive(false); // Убираем объект со сцены
-        }
-
-         // Проверка достижения второй цели
-        if(!target2IsReached && distanceToTarget2 < 1.42f)
-        {
-            target2IsReached = true;
-            Target2.gameObject.SetActive(false); // Убираем объект со сцены
-        }
-
-        // Если цели достигнуты, выдаем вознаграждение и заканчиваем эпизод
-        if(target1IsReached && target2IsReached) 
-        {
-            SetReward(1.0f);
-            EndEpisode();
-        }
-        else if (this.transform.localPosition.y < 0)
-        {
-            EndEpisode();
-        }
-    }
+void OnTriggerEnter(Collider other) {
+	var input = this.gameObject.GetComponent<Renderer>().material.color == Color.green ? 1 : 0;
+	var otherInput = other.gameObject.GetComponent<Renderer>().material.color == Color.green ? 1 : 0;
+	var outputColor = CalcOutput(input, otherInput) > 0 ? Color.green : Color.red;
+	this.gameObject.GetComponent<Renderer>().material.color = outputColor;
+	other.gameObject.GetComponent<Renderer>().material.color = outputColor;
 }
 
 ```
 
-- Начал обучение новой модели: 
+- Создал сцену с кубами, нижним прикрепил скрипт и отметил их как триггеры. Изменил их цвета: __Зелёный__ = 1, __Красный__ = 0. Получилась такая визуализация для каждой операции:
   
-![image](assets/movie_4.gif)
+### OR 
 
-- В итоге, получил такой результат:
-  
-![image](assets/movie_5.gif)
+![image](assets/m1.gif)
+
+### AND 
+
+![image](assets/m2.gif)
+
+### NAND 
+
+![image](assets/m3.gif)
 
 
 ## Выводы
 
-В ходе лабораторной работы, я познакомился с программными средствами для создания системы машинного обучения и ее интеграции в Unity. Увидел значимость обучения моделей. На тренировку второй модели я создал мало копий и потратил меньше времени. Как следствие, видно, что вторая модель работает более неуклюже.
-
-Игровой же баланс для меня, это баланс между сложностью игры и удовольствием, получаемым от нее. Очевидно, что необоснованно легкая/сложная игра оттолкнет игрока через короткий промежуток времени, поскольку не будет приносить никакого удовольствия. Настроить игровой баланс может быть очень тяжело, здесь нам и поможет машинное обучение. Например, нейросети могут регулировать сложность игры, в зависимости от умений игрока, или помочь разработчикам подобрать оптимальные параметры при настройке какого-либо игрового элемента.
+В ходе лабораторной работы я познакомился с перцептроном и его алгоритмом работы. Реализовал перцептрон в Untity, который умеет производить операции __"OR"__, __"AND"__, __"NAND"__. Разобрался в проблеме __"XOR"__. Построил графики зависимости числа эпох от ошибки обучения для каждой операции. Визуализировал работу перцептрона в Unity.
 
 | Plugin | README |
 | ------ | ------ |
